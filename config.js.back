@@ -1,0 +1,14 @@
+const db = {
+	user: "",
+	password: "",
+	host: "",
+	port: ,
+	database: ""
+};
+module.exports = {
+	mongodb: {
+		options: db,
+		uri: `${db.user}:${db.password}@${db.host}:${db.port}/${db.database}`,
+		collections: require("./collections")
+	}
+};
