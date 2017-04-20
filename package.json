@@ -1,0 +1,16 @@
+{
+  "name": "import-clients",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Omar Regino",
+  "license": "MIT",
+  "dependencies": {
+    "async": "^2.3.0",
+    "csvtojson": "^1.1.4",
+    "mongojs": "^2.4.0"
+  }
+}
