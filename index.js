@@ -11,7 +11,9 @@ const crypto = require("crypto");
 
 // Leemos los clientes
 var new_clients = [];
-csv()
+csv({
+	trim: true
+})
 .fromFile("./all_clients.csv")
 .on("json", (row_client) => {
 	// Recibimos cliente por cliente
@@ -19,24 +21,28 @@ csv()
 	var apdl = null;
 	var rz = null;
 
-	if ((row_client.apdl || "").indexOf("/")) {
+	if ((row_client.apdl || "").includes("/")) {
 		var cliente = (row_client.apdl || "").split("/");
 		apdl = cliente[0] || null;
 		rz = cliente[1] || null;
 	} else {
-		apdl = row_client.apdl || null;
+		if (row_client.apdl.includes(".")) {
+			rz = row_client.apdl;
+		} else {
+			apdl = row_client.apdl;
+		}
 	}
 
 	var client_alerts = row_client.mac.split("\n").join("").split(", ").join(",").split(",").map((alert) => { return alert.replace(/:/g, ""); });
 
 	var id_client = crypto.createHash("md5").update(`${client_alerts}${apdl}${rz}${(row_client.email || "")}${new Date().getTime()}`).digest("hex");
 
-	new_clients.push({
+	var row = {
 		_id: id_client,
 		rfc: null,
 		contract: +row_client.contract || null,
-		rz: rz,
-		apdl: apdl,
+		rz: rz || "",
+		apdl: apdl || "",
 		email: row_client.email || "",
 		domi_fisc: {
 			address: row_client.domi_fisc || "",
@@ -54,7 +60,10 @@ csv()
 		}],
 		date: dateStringToUnix(row_client.date),
 		alerts: client_alerts
-	});
+	};
+	new_clients.push(row);
+
+	console.log("Apdl: %s, Rz: %s, Email: %s", row.apdl, row.rz, row.email);
 })
 .on("done", (err) => {
 	console.log("Guardando Clientes....");
@@ -62,22 +71,18 @@ csv()
 	async.each(
 		new_clients,
 	(client, callback) => {
-		var apdl = client.apdl || "*";
-		var email = client.emai || "*";
-		var rz = client.rz || "*";
+		var apdl = client.apdl || "";
+		var email = client.email || "";
+		var rz = client.rz || "";
+
+		// console.log("Apdl: %s, %s, %s", apdl, rz, email);
 
 		mongo.clientes.findOne(
-			{ 
+			{
 				$or: [
-					{
-						apdl: { $regex: apdl, $options: "is" }
-					},
-					{
-						rz: { $regex: /rz/, $options: "is" }
-					},
-					{
-						email: { $regex: email }
-					},
+					{ apdl: { $regex: apdl } },
+					{ rz: { $regex: rz } },
+					{ email: { $regex: email } }
 				]
 			},
 		(err, extist_client) => {
@@ -85,7 +90,7 @@ csv()
 
 			if (extist_client) {
 				i++;
-				console.log("%s.- %s Cliente Actualizado: (%s / %s); Alertas %s: ", i, extist_client._id, ((client || {}).apdl || "None..."), extist_client.apdl, JSON.stringify(client.alerts));
+				console.log("%s.- %s Cliente Actualizado: (%s / %s); Alertas: %s ", i, extist_client._id, ((client || {}).apdl || "None..."), extist_client.apdl, JSON.stringify(client.alerts));
 				mongo.alertas.update(
 					{ _id: { $in: client.alerts } },
 					{ $set: { ide: client._id, stock: 3 } },
@@ -140,6 +145,21 @@ csv()
 		process.exit();
 	});
 });
+
+if (!String.prototype.includes) {
+  String.prototype.includes = function(search, start) {
+	'use strict';
+	if (typeof start !== 'number') {
+	  start = 0;
+	}
+	
+	if (start + search.length > this.length) {
+	  return false;
+	} else {
+	  return this.indexOf(search, start) !== -1;
+	}
+  };
+}; 
 
 function dateStringToUnix(datestring) {
 	var date = datestring.split("/");
