@@ -19,13 +19,19 @@ csv()
 	var apdl = null;
 	var rz = null;
 
-	if ((row_client.apdl || "").indexOf("/")) {
-		var cliente = (row_client.apdl || "").split("/");
-		apdl = cliente[0] || null;
+	if ((row_client.apdl || "").includes("/")) {
+		var cliente = (row_client.apdl || "").split("/ ");
+		apdl = cliente[0] || null;
 		rz = cliente[1] || null;
 	} else {
-		apdl = row_client.apdl || null;
+		if (row_client.apdl.includes(".")) {
+			rz = row_client.apdl;
+		} else {
+			apdl = row_client.apdl;
+		}
 	}
+
+	// console.log("APDL %s , RZ %s", apdl, rz);
 
 	var client_alerts = row_client.mac.split("\n").join("").split(", ").join(",").split(",").map((alert) => { return alert.replace(/:/g, ""); });
 
@@ -59,49 +65,84 @@ csv()
 .on("done", (err) => {
 	console.log("Guardando Clientes....");
 	var i = 0;
-	async.each(
+	async.eachSeries(
 		new_clients,
 	(client, callback) => {
-		var apdl = client.apdl || "*";
-		var email = client.emai || "*";
-		var rz = client.rz || "*";
+		var apdl = client.apdl || /null/;
+		var email = client.email || /null/;
+		var rz = client.rz || /null/;
 
 		mongo.clientes.findOne(
-			{ 
+			{
 				$or: [
 					{
 						apdl: { $regex: apdl, $options: "is" }
 					},
 					{
-						rz: { $regex: /rz/, $options: "is" }
+						rz: { $regex: rz, $options: "is" }
 					},
 					{
 						email: { $regex: email }
-					},
+					}
 				]
+			/*,
+				$or: [
+					{
+						apdl: { $regex: apdl, $options: "is" }
+					},
+					{
+						rz: { $regex: rz, $options: "is" }
+					},
+					{
+						email: { $regex: email }
+					}
+				],*/
+				/*$and: [
+					{
+						apdl: { $regex: /apdl/ }
+					},
+					{
+						rz: { $regex: /rz/ }
+					}
+				]*/
 			},
 		(err, extist_client) => {
 			if (err) return callback(err);
 
 			if (extist_client) {
-				i++;
-				console.log("%s.- %s Cliente Actualizado: (%s / %s); Alertas %s: ", i, extist_client._id, ((client || {}).apdl || "None..."), extist_client.apdl, JSON.stringify(client.alerts));
-				mongo.alertas.update(
+				async.eachSeries(
+					client.alerts,
+				(alert, ecallback) => {
+					mongo.alertas.update(
+						{ _id: alert },
+						{ $set: { ide: extist_client._id, stock: 3 } },
+						{ multi: true },
+					(err, cl_alerts) => {
+						if (err) return ecallback(err);
+						ecallback();
+					});
+				},
+				(err) => {
+					if (err) return callback(err);
+					i++;
+					console.log("%s.- %s Cliente Actualizado: (%s / %s); Alertas %s: ", i, extist_client._id, ((client || {}).apdl || "None..."), extist_client.apdl, JSON.stringify(client.alerts));
+					callback();
+				});
+				/*mongo.alertas.update(
 					{ _id: { $in: client.alerts } },
 					{ $set: { ide: client._id, stock: 3 } },
 					{ multi: true },
 				(err, updt_clt) => {
 					if (err) return callback(err);
+					i++;
+					console.log("%s.- %s Cliente Actualizado: (%s / %s); Alertas %s: ", i, extist_client._id, ((client || {}).apdl || "None..."), extist_client.apdl, JSON.stringify(client.alerts));
 					callback();
-				})
+				})*/
 			} else {
 				var cl_alerts = client.alerts;
 				var cl_contacts = client.contacts;
 				delete client.alerts;
 				client.contacts = client.contacts.map((contact) => { return contact._id });
-				i++;
-
-				console.log("%s.- %s Cliente Creado: %s; Alertas %s: ", i, client._id, ((client || {}).apdl || ""), JSON.stringify(cl_alerts));
 
 				mongo.clientes.save(
 					client,
@@ -113,7 +154,7 @@ csv()
 					(err, inst_clients_cont) => {
 						if (err) return callback(err);
 
-						async.each(
+						async.eachSeries(
 							cl_alerts,
 						(alert, ecallback) => {
 							mongo.alertas.update(
@@ -127,6 +168,8 @@ csv()
 						},
 						(err) => {
 							if (err) return callback(err);
+							i++;
+							console.log("%s.- %s Cliente Creado: %s; Alertas %s: ", i, client._id, ((client || {}).apdl || ""), JSON.stringify(cl_alerts));
 							callback();
 						});
 					})
@@ -140,6 +183,21 @@ csv()
 		process.exit();
 	});
 });
+
+if (!String.prototype.includes) {
+  String.prototype.includes = function(search, start) {
+	'use strict';
+	if (typeof start !== 'number') {
+	  start = 0;
+	}
+	
+	if (start + search.length > this.length) {
+	  return false;
+	} else {
+	  return this.indexOf(search, start) !== -1;
+	}
+  };
+};
 
 function dateStringToUnix(datestring) {
 	var date = datestring.split("/");
