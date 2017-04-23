@@ -82,29 +82,9 @@ csv()
 						rz: { $regex: rz, $options: "is" }
 					},
 					{
-						email: { $regex: email }
+						email: { $regex: email, $options: "is" }
 					}
 				]
-			/*,
-				$or: [
-					{
-						apdl: { $regex: apdl, $options: "is" }
-					},
-					{
-						rz: { $regex: rz, $options: "is" }
-					},
-					{
-						email: { $regex: email }
-					}
-				],*/
-				/*$and: [
-					{
-						apdl: { $regex: /apdl/ }
-					},
-					{
-						rz: { $regex: /rz/ }
-					}
-				]*/
 			},
 		(err, extist_client) => {
 			if (err) return callback(err);
@@ -128,16 +108,6 @@ csv()
 					console.log("%s.- %s Cliente Actualizado: (%s / %s); Alertas %s: ", i, extist_client._id, ((client || {}).apdl || "None..."), extist_client.apdl, JSON.stringify(client.alerts));
 					callback();
 				});
-				/*mongo.alertas.update(
-					{ _id: { $in: client.alerts } },
-					{ $set: { ide: client._id, stock: 3 } },
-					{ multi: true },
-				(err, updt_clt) => {
-					if (err) return callback(err);
-					i++;
-					console.log("%s.- %s Cliente Actualizado: (%s / %s); Alertas %s: ", i, extist_client._id, ((client || {}).apdl || "None..."), extist_client.apdl, JSON.stringify(client.alerts));
-					callback();
-				})*/
 			} else {
 				var cl_alerts = client.alerts;
 				var cl_contacts = client.contacts;
