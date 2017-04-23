@@ -85,8 +85,10 @@ csv()
 		console.log("Alertas encontradas %s: %s", (match_alerts.length), (match_alerts));
 		console.log("\n");
 		console.log("Alertas no encontradas %s: %s", (unmatch_alerts.length), (unmatch_alerts));
+		console.log("\n");
+		console.log("Guardando Alertas no encontradas...");
 
-		async.each(
+		async.eachSeries(
 			unmatch_alerts,
 		(alert, callback) => {
 			mongo.alertas.save(

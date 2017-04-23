@@ -114,7 +114,7 @@ csv()
 				delete client.alerts;
 				client.contacts = client.contacts.map((contact) => { return contact._id });
 
-				mongo.clientes.save(
+				mongo.clientes.insert(
 					client,
 				(err, inst_client) => {
 					if (err) return callback(err);
