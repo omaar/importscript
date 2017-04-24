@@ -9,53 +9,13 @@ const csv = require("csvtojson");
 const async = require("async");
 const crypto = require("crypto");
 
-var all_clients_email = [];
-var match_users_email = [];
+var all_clients = [];
+var match_users = [];
 var all_emails = [];
-
-/*csv()
-.fromFile("./all_clients.csv")
-.on("json", (row_client) => {
-	// console.log(row_client.email);
-	var client_emails = row_client.email.split("/ ");
-
-	all_emails = all_emails.concat(client_emails);
-})
-.on("done", (err) => {
-	if (err) throw new Error(err);
-
-	async.series([
-		(callback) => {
-			mongo.clientes.find(
-				{ email: { $exists: true } },
-				{ rz: 1, apdl: 1, email: 1 },
-			(err, match_clients) => {
-				if (err) return callback(err);
-				all_emails = match_clients;
-				callback();
-			});
-		},
-		(callback) => {
-			mongo.users.find(
-				{ user: { $in: all_emails || [] } },
-			(err, match_users) => {
-				if (err) return callback(err);
-				match_users_email = match_users;
-				callback();
-			});
-		}
-	],
-	(err) => {
-		if (err) throw new Error(err);
-		console.log("Usuarios encontrados: %s", match_users_email.map((user) => { return user.user; }));
-		console.log("\n");
-		console.log("Usuarios no encontrados: %s", diffArray(all_emails, match_users_email.map((user) => { return user.user; })));
-		process.exit();
-	});
-});*/
 
 async.series([
 	(callback) => {
+		console.log("Buscando Clientes...");
 		mongo.clientes.find(
 			{ email: { $exists: true } },
 			{ rz: 1, apdl: 1, email: 1 },
@@ -64,43 +24,64 @@ async.series([
 			match_clients.forEach((client) => {
 				client.email = client.email.split("/ ");
 			});
-			all_clients_email = match_clients;
+			all_clients = match_clients;
 			callback();
 		});
 	},
 	(callback) => {
-		// console.log("All ", all_clients_email)
-		/*all_emails = [].concat.apply([], all_clients_email.map((client) => { return client.email }) ) 
-
-		mongo.users.find(
-			{ user: { $in: all_emails } },
-		(err, match_users) => {
-			if (err) return callback(err);
-			match_users_email = match_users;
-			callback();
-		});*/
+		console.log("Buscando Usuarios...");
 		async.eachSeries(
-			all_clients_email,
+			all_clients,
 			(client, ecallback) => {
 				mongo.users.find(
 					{ user: { $in: client.email } },
-				(err, match_users) => {
-					if (err) return callback(err);
-					console.log(match_users)
-					callback();
+					{ _id: 1, user: 1 },
+				(err, users) => {
+					if (err) return ecallback(err);
+					if (users.length) {
+						users.forEach((user) => {
+							user.ide = client._id;
+						});
+						console.log("Usuarios: ", users);
+						match_users = match_users.concat(users);
+					}
+					ecallback();
 				});
 			},
 		(err) => {
 			if (err) return callback(err);
 			callback();
 		});
+	},
+	(callback) => {
+		/*console.log("Usuarios que coincidieron...");
+		console.log(match_users);*/
+		//callback();
+		console.log("Actualizando Usuarios...");
+		async.eachSeries(
+			match_users,
+			(user, ecallback) => {
+				mongo.users.update(
+					{ _id: user._id },
+					{ $set: { ide: user.ide } },
+				(err, updt_user) => {
+					if (err) return ecallback(err);
+					console.log("Usuario: %s, Cliente: %s", user._id, user.ide);
+					ecallback();
+				});
+			},
+		(err) => {
+			if (err) return callback(err);
+			console.log("Usuarios Actualizandos!");
+			callback();
+		});
 	}
 ],
 (err) => {
 	if (err) throw new Error(err);
-	//console.log("Usuarios encontrados: %s", match_users_email.map((user) => { return user.user; }));
+	// console.log("Usuarios encontrados: %s", match_users_email.map((user) => { return user.user; }));
 	console.log("\n");
-	//console.log("Usuarios no encontrados: %s", diffArray(all_emails, match_users_email.map((user) => { return user.user; }) ));
+	// console.log("Usuarios no encontrados: %s", diffArray(all_emails, match_users_email.map((user) => { return user.user; }) ));
 	process.exit();
 });
 

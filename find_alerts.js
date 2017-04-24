@@ -98,9 +98,16 @@ csv()
 				console.log(inserted._id);
 				callback();
 			});
+			/*console.log(JSON.stringify(alert._id));
+			console.log("\n");
+			callback();*/
 		},
 		(err) => {
 			if (err) throw new Error(err);
+			/*var key = "noserie";
+			console.log("All unmatch_alerts: %s %s", unmatch_alerts.length, JSON.stringify(unmatch_alerts.map(e => e[key])));
+			console.log("\n");
+			console.log("All unmatch_alerts unique: %s %s", unmatch_alerts.unique(key, () => {}).length, JSON.stringify(unmatch_alerts.unique(key, () => {}).map(e => e[key])))*/
 			process.exit();
 		});
 	});
