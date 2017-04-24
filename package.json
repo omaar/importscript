@@ -2,7 +2,7 @@
   "name": "import-clients",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "import_clients.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
